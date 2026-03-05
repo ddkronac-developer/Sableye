@@ -12,12 +12,10 @@ SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
 
 
 def _proxied_url(url: str) -> str:
-    """Zabalí URL přes ScraperAPI proxy."""
     return f"https://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
 
 
 def _format_price(price_raw) -> str:
-    """Převede číslo na čitelnou cenu v Kč."""
     try:
         return f"{int(price_raw):,} Kč".replace(",", " ")
     except Exception:
@@ -25,7 +23,6 @@ def _format_price(price_raw) -> str:
 
 
 def _parse_gaitem(el) -> dict | None:
-    """Vytáhne a naparsuje JSON z data-gaitem atributu."""
     try:
         raw = el.get("data-gaitem", "")
         if not raw:
@@ -36,7 +33,6 @@ def _parse_gaitem(el) -> dict | None:
 
 
 def scrape_smarty(url: str) -> dict | None:
-    """Scrapne detail produktu ze Smarty.cz. Vrátí slovník nebo None při chybě."""
     try:
         resp = requests.get(_proxied_url(url), timeout=30)
         resp.raise_for_status()
@@ -69,7 +65,6 @@ def scrape_smarty(url: str) -> dict | None:
 
 
 def search_smarty(query: str) -> list[dict]:
-    """Vyhledá produkty na Smarty.cz pomocí data-gaitem JSON atributu."""
     search_url = BASE_SEARCH_URL.format(query=query.replace(" ", "+"))
     results = []
 
@@ -78,20 +73,15 @@ def search_smarty(query: str) -> list[dict]:
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # DEBUG - ukaž část HTML aby bylo vidět jaké třídy Smarty používá
-        print(f"[Smarty DEBUG] HTML snippet: {resp.text[2000:3500]}")
-
         items = soup.select("[data-gaitem]")
         print(f"[Smarty] Nalezeno {len(items)} položek pro '{query}'")
 
-        # Záloha - zkus najít jakýkoliv element s data-gaitem
-
-
-        for item in items[:5]:
+        for item in items[:10]:
             try:
                 data = _parse_gaitem(item)
-                print(f"[Smarty DEBUG] data: {data}, data-url: {item.get('data-url')}")
                 if not data:
+                    continue
+                if data.get("id") == "plachta.subcategory":
                     continue
 
                 name = data.get("name", "Neznámý produkt")
@@ -105,6 +95,8 @@ def search_smarty(query: str) -> list[dict]:
                     href = link_el.get("href") if link_el else None
                     url = (BASE_URL + href) if href and href.startswith("/") else href
 
+                print(f"[Smarty DEBUG] name={name}, price={price}, url={url}")
+
                 if name and url:
                     results.append({
                         "name": name,
@@ -112,6 +104,9 @@ def search_smarty(query: str) -> list[dict]:
                         "availability": availability,
                         "url": url,
                     })
+                    if len(results) >= 5:
+                        break
+
             except Exception as e:
                 print(f"[Smarty] Chyba při parsování položky: {e}")
                 continue
