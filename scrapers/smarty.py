@@ -85,9 +85,7 @@ def search_smarty(query: str) -> list[dict]:
         print(f"[Smarty] Nalezeno {len(items)} položek pro '{query}'")
 
         # Záloha - zkus najít jakýkoliv element s data-gaitem
-        if not items:
-            items = soup.select("[data-gaitem]")
-            print(f"[Smarty] Záloha: nalezeno {len(items)} elementů s data-gaitem")
+
 
         for item in items[:5]:
             try:
