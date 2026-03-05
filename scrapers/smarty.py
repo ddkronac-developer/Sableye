@@ -81,7 +81,7 @@ def search_smarty(query: str) -> list[dict]:
         # DEBUG - ukaž část HTML aby bylo vidět jaké třídy Smarty používá
         print(f"[Smarty DEBUG] HTML snippet: {resp.text[2000:3500]}")
 
-        items = soup.select(".productList-item[data-gaitem]")
+        items = soup.select("[data-gaitem]")
         print(f"[Smarty] Nalezeno {len(items)} položek pro '{query}'")
 
         # Záloha - zkus najít jakýkoliv element s data-gaitem
