@@ -90,6 +90,7 @@ def search_smarty(query: str) -> list[dict]:
         for item in items[:5]:
             try:
                 data = _parse_gaitem(item)
+                print(f"[Smarty DEBUG] data: {data}, data-url: {item.get('data-url')}")
                 if not data:
                     continue
 
