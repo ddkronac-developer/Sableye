@@ -42,16 +42,13 @@ def scrape_smarty(url: str) -> dict | None:
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Název
         name_el = soup.select_one("h1")
         name = name_el.get_text(strip=True) if name_el else "Neznámý produkt"
 
-        # Cena z data-gaitem
         gaitem_el = soup.select_one("[data-gaitem]")
         data = _parse_gaitem(gaitem_el) if gaitem_el else None
         price = _format_price(data.get("price")) if data else "Neuvedena"
 
-        # Dostupnost
         avail_el = (
             soup.select_one(".availability-text")
             or soup.select_one("[class*='avail']")
@@ -59,7 +56,6 @@ def scrape_smarty(url: str) -> dict | None:
         )
         availability = avail_el.get_text(strip=True) if avail_el else "Neznámá"
 
-        # Obrázek
         img_el = soup.select_one(".productList-item-img") or soup.select_one("img[alt]")
         image = img_el.get("src") if img_el else None
         if image and image.startswith("//"):
@@ -81,10 +77,17 @@ def search_smarty(query: str) -> list[dict]:
         resp = requests.get(_proxied_url(search_url), timeout=30)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
-        print(f"[Smarty DEBUG] HTML snippet: {resp.text[2000:3000]}")
+
+        # DEBUG - ukaž část HTML aby bylo vidět jaké třídy Smarty používá
+        print(f"[Smarty DEBUG] HTML snippet: {resp.text[2000:3500]}")
 
         items = soup.select(".productList-item[data-gaitem]")
         print(f"[Smarty] Nalezeno {len(items)} položek pro '{query}'")
+
+        # Záloha - zkus najít jakýkoliv element s data-gaitem
+        if not items:
+            items = soup.select("[data-gaitem]")
+            print(f"[Smarty] Záloha: nalezeno {len(items)} elementů s data-gaitem")
 
         for item in items[:5]:
             try:
