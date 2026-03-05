@@ -81,6 +81,7 @@ def search_smarty(query: str) -> list[dict]:
         resp = requests.get(_proxied_url(search_url), timeout=30)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
+        print(f"[Smarty DEBUG] HTML snippet: {resp.text[2000:3000]}")
 
         items = soup.select(".productList-item[data-gaitem]")
         print(f"[Smarty] Nalezeno {len(items)} položek pro '{query}'")
