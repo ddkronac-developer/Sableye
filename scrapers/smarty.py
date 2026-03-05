@@ -1,16 +1,36 @@
 """
-Smarty.cz scraper (funguje i pro JRC – stejná skupina).
-Smarty má méně agresivní ochranu než Alza, takže zkusíme nejdřív
-jednoduchý requests+BeautifulSoup, Playwright jako záloha.
+Smarty.cz scraper – využívá data-gaitem JSON atribut přímo v HTML,
+což je spolehlivější než parsování CSS tříd.
 """
+import json
 import requests
 from bs4 import BeautifulSoup
 
 BASE_SEARCH_URL = "https://www.smarty.cz/Vyhledavani?SearchText={query}"
+BASE_URL = "https://www.smarty.cz"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
     "Accept-Language": "cs-CZ,cs;q=0.9",
 }
+
+
+def _format_price(price_raw) -> str:
+    """Převede číslo na čitelnou cenu v Kč."""
+    try:
+        return f"{int(price_raw):,} Kč".replace(",", " ")
+    except Exception:
+        return str(price_raw) + " Kč" if price_raw else "Neuvedena"
+
+
+def _parse_gaitem(el) -> dict | None:
+    """Vytáhne a naparsuje JSON z data-gaitem atributu."""
+    try:
+        raw = el.get("data-gaitem", "")
+        if not raw:
+            return None
+        return json.loads(raw)
+    except Exception:
+        return None
 
 
 def scrape_smarty(url: str) -> dict | None:
@@ -21,23 +41,24 @@ def scrape_smarty(url: str) -> dict | None:
         soup = BeautifulSoup(resp.text, "html.parser")
 
         # Název
-        name_el = soup.select_one("h1") or soup.select_one(".product-name")
+        name_el = soup.select_one("h1")
         name = name_el.get_text(strip=True) if name_el else "Neznámý produkt"
 
-        # Cena – zkusíme více selektorů
-        price_el = (
-            soup.select_one(".price-final")
-            or soup.select_one(".price")
-            or soup.select_one("[class*='price']")
-        )
-        price = price_el.get_text(strip=True).replace("\xa0", " ") if price_el else "Neuvedena"
+        # Cena z data-gaitem
+        gaitem_el = soup.select_one("[data-gaitem]")
+        data = _parse_gaitem(gaitem_el) if gaitem_el else None
+        price = _format_price(data.get("price")) if data else "Neuvedena"
 
         # Dostupnost
-        avail_el = soup.select_one(".availability") or soup.select_one("[class*='avail']") or soup.select_one("[class*='stock']")
+        avail_el = (
+            soup.select_one(".availability-text")
+            or soup.select_one("[class*='avail']")
+            or soup.select_one("[class*='stock']")
+        )
         availability = avail_el.get_text(strip=True) if avail_el else "Neznámá"
 
         # Obrázek
-        img_el = soup.select_one(".product-image img") or soup.select_one(".gallery img")
+        img_el = soup.select_one(".productList-item-img") or soup.select_one(".gallery img") or soup.select_one("img[alt]")
         image = img_el.get("src") if img_el else None
         if image and image.startswith("//"):
             image = "https:" + image
@@ -50,7 +71,7 @@ def scrape_smarty(url: str) -> dict | None:
 
 
 def search_smarty(query: str) -> list[dict]:
-    """Vyhledá produkty na Smarty.cz a vrátí seznam výsledků."""
+    """Vyhledá produkty na Smarty.cz pomocí data-gaitem JSON atributu."""
     search_url = BASE_SEARCH_URL.format(query=query.replace(" ", "+"))
     results = []
 
@@ -59,25 +80,35 @@ def search_smarty(query: str) -> list[dict]:
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Produktové karty – selektory uprav podle skutečné struktury stránky
-        items = soup.select(".product-item") or soup.select(".item") or soup.select("[class*='product']")
+        # Produktové karty mají třídu productList-item a data-gaitem atribut s JSON daty
+        items = soup.select(".productList-item[data-gaitem]")
 
-        for item in items[:8]:
+        for item in items[:5]:
             try:
-                name_el = item.select_one("h2, h3, .name, .title")
-                price_el = item.select_one(".price-final, .price, [class*='price']")
-                avail_el = item.select_one(".availability, [class*='avail']")
-                link_el = item.select_one("a[href]")
+                data = _parse_gaitem(item)
+                if not data:
+                    continue
 
-                name = name_el.get_text(strip=True) if name_el else None
-                price = price_el.get_text(strip=True).replace("\xa0", " ") if price_el else "Neuvedena"
-                availability = avail_el.get_text(strip=True) if avail_el else "Neznámá"
-                href = link_el.get("href") if link_el else None
-                url = ("https://www.smarty.cz" + href) if href and href.startswith("/") else href
+                name = data.get("name", "Neznámý produkt")
+                price = _format_price(data.get("price") or data.get("fullPrice"))
+                availability = data.get("available", "Neznámá")
+                data_url = item.get("data-url", "")
+                url = (BASE_URL + "/" + data_url.lstrip("/")) if data_url else None
+
+                if not url:
+                    link_el = item.select_one("a[href]")
+                    href = link_el.get("href") if link_el else None
+                    url = (BASE_URL + href) if href and href.startswith("/") else href
 
                 if name and url:
-                    results.append({"name": name, "price": price, "availability": availability, "url": url})
-            except Exception:
+                    results.append({
+                        "name": name,
+                        "price": price,
+                        "availability": availability,
+                        "url": url,
+                    })
+            except Exception as e:
+                print(f"[Smarty] Chyba při parsování položky: {e}")
                 continue
 
     except Exception as e:
