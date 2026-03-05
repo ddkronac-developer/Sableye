@@ -80,7 +80,6 @@ def search_smarty(query: str) -> list[dict]:
             try:
                 data = _parse_gaitem(item)
                 if not data:
-                    print(f"[Smarty DEBUG] id={data.get('id')}, name={data.get('name')}")
                     continue
                 if data.get("id") == "plachta.subcategory":
                     continue
