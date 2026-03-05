@@ -1,26 +1,19 @@
 """
-Smarty.cz scraper – využívá data-gaitem JSON atribut přímo v HTML,
-což je spolehlivější než parsování CSS tříd.
+Smarty.cz scraper – používá ScraperAPI proxy pro obejití blokování Railway IP.
 """
 import json
+import os
 import requests
 from bs4 import BeautifulSoup
 
 BASE_SEARCH_URL = "https://www.smarty.cz/Vyhledavani?SearchText={query}"
 BASE_URL = "https://www.smarty.cz"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "cs-CZ,cs;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    "Cache-Control": "max-age=0",
-}
+SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
+
+
+def _proxied_url(url: str) -> str:
+    """Zabalí URL přes ScraperAPI proxy."""
+    return f"https://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
 
 
 def _format_price(price_raw) -> str:
@@ -45,7 +38,7 @@ def _parse_gaitem(el) -> dict | None:
 def scrape_smarty(url: str) -> dict | None:
     """Scrapne detail produktu ze Smarty.cz. Vrátí slovník nebo None při chybě."""
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
+        resp = requests.get(_proxied_url(url), timeout=30)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -67,7 +60,7 @@ def scrape_smarty(url: str) -> dict | None:
         availability = avail_el.get_text(strip=True) if avail_el else "Neznámá"
 
         # Obrázek
-        img_el = soup.select_one(".productList-item-img") or soup.select_one(".gallery img") or soup.select_one("img[alt]")
+        img_el = soup.select_one(".productList-item-img") or soup.select_one("img[alt]")
         image = img_el.get("src") if img_el else None
         if image and image.startswith("//"):
             image = "https:" + image
@@ -85,12 +78,12 @@ def search_smarty(query: str) -> list[dict]:
     results = []
 
     try:
-        resp = requests.get(search_url, headers=HEADERS, timeout=15)
+        resp = requests.get(_proxied_url(search_url), timeout=30)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 
-        # Produktové karty mají třídu productList-item a data-gaitem atribut s JSON daty
         items = soup.select(".productList-item[data-gaitem]")
+        print(f"[Smarty] Nalezeno {len(items)} položek pro '{query}'")
 
         for item in items[:5]:
             try:
