@@ -81,8 +81,9 @@ def search_smarty(query: str) -> list[dict]:
                 data = _parse_gaitem(item)
                 if not data:
                     continue
-                if data.get("id") == "plachta.subcategory":
-                    continue
+                    print(f"[ID] {data.get('id')} | {data.get('name')}")
+#                if data.get("id") == "plachta.subcategory":
+#                    continue
 
                 name = data.get("name", "Neznámý produkt")
                 price = _format_price(data.get("price") or data.get("fullPrice"))
