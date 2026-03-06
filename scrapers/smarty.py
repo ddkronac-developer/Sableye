@@ -6,7 +6,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 
-BASE_SEARCH_URL = "https://www.smarty.cz/Vyhledavani?SearchText={query}"
+BASE_SEARCH_URL = "https://www.smarty.cz/Api/Products/Search?searchText={query}&pageSize=10"
 BASE_URL = "https://www.smarty.cz"
 SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
 
