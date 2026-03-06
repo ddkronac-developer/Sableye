@@ -6,13 +6,13 @@ import os
 import requests
 from bs4 import BeautifulSoup
 
-BASE_SEARCH_URL = "https://www.smarty.cz/Api/Products/Search?searchText={query}&pageSize=10"
+BASE_SEARCH_URL = "https://www.smarty.cz/Vyhledavani?SearchText={query}"
 BASE_URL = "https://www.smarty.cz"
 SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
 
 
 def _proxied_url(url: str) -> str:
-    return f"https://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}"
+    return f"https://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={url}&render=true"
 
 
 def _format_price(price_raw) -> str:
