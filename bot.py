@@ -18,6 +18,7 @@ PRESET_PRODUCTS = [
     "https://www.smarty.cz/Pokemon-TCG-SV10-5-White-Flare-Elite-Trainer-Box-4p231148",
     "https://www.smarty.cz/Pokemon-TCG-SV10-5-Black-Bolt-Booster-Bundle-4p231155",
     "https://www.smarty.cz/Pokemon-TCG-SV10-5-White-Flare-Booster-Bundle-4p231154",
+    https://www.smarty.cz/Pokemon-TCG-ME03-Perfect-Order-Booster-Box-36-boosteru--4p255656,
 ]
 
 intents = discord.Intents.default()
